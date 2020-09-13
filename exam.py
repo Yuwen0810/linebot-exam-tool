@@ -5,9 +5,9 @@ from sklearn.utils import shuffle
 
 from json_tools import *
 
+EXCEL_PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'data\\excel_output.xlsx')
 
-# os.chdir(r'D:/NTUCode/linebot_exam_tool/data')
-exam_data = pd.read_excel('./data/excel_output.xlsx')
+exam_data = pd.read_excel(EXCEL_PATH)
 
 def get_question_ids(num_of_q, cls=None):
     if isinstance(cls, (tuple, list)) and len(cls) > 0:

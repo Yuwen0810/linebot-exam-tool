@@ -2,6 +2,7 @@ import json
 import os
 import numpy as np
 
+RECORD_PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'data\\user_record.json')
 
 setting_temp = {
     'num_of_q': 3,
@@ -18,7 +19,7 @@ setting_temp = {
 }
 
 
-def json_read(file_path:str='./data/user_record.json') -> dict:
+def json_read(file_path:str=RECORD_PATH) -> dict:
     print("reading .................")
     # print(os.getcwd())
     try:
@@ -30,7 +31,7 @@ def json_read(file_path:str='./data/user_record.json') -> dict:
         print('Error:', e)
         return None
 
-def json_write(data:dict, file_path:str='./data/user_record.json'):
+def json_write(data:dict, file_path:str=RECORD_PATH):
     print("writting .................")
     try:
         with open(file_path, 'w') as f:

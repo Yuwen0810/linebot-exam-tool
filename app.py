@@ -40,6 +40,7 @@ handler = WebhookHandler('c956674e81ca7bbec33bd70ebc49ca7c')
 exam_dict = {}
 user_setting = {}
 Q_CLS = ['日期', '價格', '廠商數', '人數', '%', '多選', '短正確', '短錯誤', '長正確', '長錯誤']
+SET_PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'data\\user_setting.json')
 #======global parameters==========
 
 def get_setting_message(user_id):
@@ -108,175 +109,181 @@ def handle_message(event):
     # json_write(user_record)
 
     ##########################################
+    # 練習 or 回答 -> 馬上顯示答案的
+    ##########################################
+
+
+
+
+    ##########################################
     # 考試 or 回答
     ##########################################
-    try:
-        if msg in ['考試', '測驗', '1', '2', '3', '4']:
-            # 考試，重新出題
-            if msg in ['考試', '測驗']:
+    if msg in ['考試', '測驗', '1', '2', '3', '4']:
+        # 考試，重新出題
+        if msg in ['考試', '測驗']:
 
-                # 防止忘記結束設定
-                if user_setting[user_id]['is_setting']:
-                    user_setting[user_id]['is_setting'] = False
-                    json_write(user_setting, './data/user_setting.json')
-
-                num_of_q = user_setting[user_id]['num_of_q']
-                q_cls = [c for c in Q_CLS if user_setting[user_id][c] == True]
-
-                q_ids, questions, answers, cls = get_question_ids(num_of_q, cls=q_cls)
-
-                exam_dict[user_id] = {
-                    'start_time': timestamp,
-                    'end_time': None,
-                    'q_ids': q_ids,
-                    'questions': questions,
-                    'answers': answers,
-                    'user_answers': np.zeros(num_of_q, np.int),
-                    'cls': cls,
-                    'is_exam': True,
-                    'current': 0
-                }
-
-                # 建立 setting 中考試者的資料
-                if user_id not in user_setting:
-                    user_setting[user_id] = setting_temp
-                    json_write(user_setting, './data/user_setting.json')
-
-
-            elif user_id in exam_dict and exam_dict[user_id]['is_exam']:
-                exam_dict[user_id]['user_answers'][exam_dict[user_id]['current']] = msg
-                exam_dict[user_id]['current'] += 1
-
-            # if 該用戶有參與考試
-            if user_id in exam_dict and exam_dict[user_id]['is_exam']:
-                # 還沒超過最大題數，繼續出題
-                if exam_dict[user_id]['current'] < user_setting[user_id]['num_of_q']:
-                    q_index = exam_dict[user_id]['current']
-
-                    # 取得題目的訊息
-                    q_id = exam_dict[user_id]['q_ids'][q_index]
-                    question = exam_dict[user_id]['questions'][q_index].replace('(1)', '\n(1)').replace('(2)',
-                                                                                                        '\n(2)').replace(
-                        '(3)', '\n(3)').replace('(4)', '\n(4)').replace(' ', '')
-                    cls = exam_dict[user_id]['cls'][q_index]
-
-                    # 出題
-                    title = "# " + str(q_id) + f"    (第{q_index + 1}題，共{user_setting[user_id]['num_of_q']}題)" + "\n"
-                    title_cls = f"分類：{cls}\n\n"
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=title + title_cls + question))
-
-                # 達到最大題數，開始結算
-                else:
-                    exam_dict[user_id]['end_time'] = timestamp
-
-                    total_q = user_setting[user_id]['num_of_q']
-                    correct_q = exam_dict[user_id]['answers'] == exam_dict[user_id]['user_answers']
-                    correct_id = exam_dict[user_id]['q_ids'][correct_q]
-                    correct_user_answer = exam_dict[user_id]['user_answers'][correct_q]
-                    correct_answer = exam_dict[user_id]['answers'][correct_q]
-                    correct_cls = exam_dict[user_id]['cls'][correct_q]
-
-                    num_correct_q = np.sum(correct_q)
-                    score = 100 * (np.sum(num_correct_q) / total_q)
-
-                    error_q = exam_dict[user_id]['answers'] != exam_dict[user_id]['user_answers']
-                    error_id = exam_dict[user_id]['q_ids'][error_q]
-                    error_user_answer = exam_dict[user_id]['user_answers'][error_q]
-                    error_answer = exam_dict[user_id]['answers'][error_q]
-                    error_cls = exam_dict[user_id]['cls'][error_q]
-
-                    reply_title = f'答對題數：{num_correct_q} / {total_q}  ' + \
-                                  '分數：{:.1f} 分\n'.format(score)
-
-                    # reply_correct = '\n答對題號：\n#         你的答案    正確答案    類別\n'
-                    reply_correct = '\n答對題號：\n#    你的答案  正確答案    類別\n'
-                    for id, u_ans, ans, c in zip(correct_id, correct_user_answer, correct_answer, correct_cls):
-                        reply_correct += f'{id}       {u_ans}               {ans}         {c}\n'
-
-                    reply_error = '\n答錯題號：\n#    你的答案  正確答案    類別\n'
-                    for id, u_ans, ans, c in zip(error_id, error_user_answer, error_answer, error_cls):
-                        reply_error += f'{id}       {u_ans}               {ans}         {c}\n'
-
-                    cost_time = exam_dict[user_id]['end_time'] - exam_dict[user_id]['start_time']
-                    reply_time = f'\n測驗時間： {cost_time / 1000} 秒'
-
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(
-                        text=reply_title + reply_correct + reply_error + reply_time))
-                    exam_dict[user_id]['current'] = False
-
-                    add_para = {
-                        'user_id': user_id,
-                        'start_time': exam_dict[user_id]['start_time'],
-                        'end_time': exam_dict[user_id]['end_time'],
-                        'correct_id': correct_id,
-                        'error_id': error_id,
-                        'score': score,
-                        'num_of_q': user_setting[user_id]['num_of_q']
-                    }
-                    add_exam_record(**add_para)
-
-        ##########################################
-        # 設定題組、考試題數
-        ##########################################
-        elif msg == '設定':
             if user_id not in user_setting:
                 user_setting[user_id] = setting_temp
-                json_write(user_setting, './data/user_setting.json')
+                json_write(user_setting, SET_PATH)
 
-            user_setting[user_id]['is_setting'] = True
-            reply_txt = f"考試題數：{user_setting[user_id]['num_of_q']}\n"
-            reply_txt += get_setting_message(user_id)
-
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_txt))
-
-        # 設定題組
-        elif (msg in Q_CLS or msg[:2] == '題數') and user_setting[user_id]['is_setting']:
-            if msg[:2] == '題數':
-                user_setting[user_id]['num_of_q'] = int(msg[2:].replace(' ', ''))
-            else:
-                user_setting[user_id][msg] = not user_setting[user_id][msg]
-
-            reply_txt = f"考試題數：{user_setting[user_id]['num_of_q']}\n"
-            reply_txt += get_setting_message(user_id)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_txt))
-
-        elif msg == '重置':
-            user_setting[user_id] = setting_temp
-            json_write(user_setting, './data/user_setting.json')
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="重置完成～"))
-
-
-        ##########################################
-        # 考試 or 設定結束
-        ##########################################
-        elif msg == '結束':
-            if user_id in exam_dict and exam_dict[user_id]['is_exam']:
-                del exam_dict[user_id]
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="考試結束～"))
-
-            if user_setting[user_id]['is_setting']:
+            # 防止忘記結束設定
+            if user_id in user_setting and user_setting[user_id]['is_setting']:
                 user_setting[user_id]['is_setting'] = False
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="設定結束～"))
-                json_write(user_setting, './data/user_setting.json')
+                json_write(user_setting, SET_PATH)
+
+            num_of_q = user_setting[user_id]['num_of_q']
+            q_cls = [c for c in Q_CLS if user_setting[user_id][c] == True]
+
+            q_ids, questions, answers, cls = get_question_ids(num_of_q, cls=q_cls)
+
+            exam_dict[user_id] = {
+                'start_time': timestamp,
+                'end_time': None,
+                'q_ids': q_ids,
+                'questions': questions,
+                'answers': answers,
+                'user_answers': np.zeros(num_of_q, np.int),
+                'cls': cls,
+                'is_exam': True,
+                'current': 0
+            }
+
+            # 建立 setting 中考試者的資料
+            if user_id not in user_setting:
+                user_setting[user_id] = setting_temp
+                json_write(user_setting, SET_PATH)
 
 
-        ##########################################
-        # 瀏覽紀錄
-        ##########################################
-        elif msg in ['紀錄', '歷史']:
-            pass
+        elif user_id in exam_dict and exam_dict[user_id]['is_exam']:
+            exam_dict[user_id]['user_answers'][exam_dict[user_id]['current']] = msg
+            exam_dict[user_id]['current'] += 1
 
+        # if 該用戶有參與考試
+        if user_id in exam_dict and exam_dict[user_id]['is_exam']:
+            # 還沒超過最大題數，繼續出題
+            if exam_dict[user_id]['current'] < user_setting[user_id]['num_of_q']:
+                q_index = exam_dict[user_id]['current']
 
+                # 取得題目的訊息
+                q_id = exam_dict[user_id]['q_ids'][q_index]
+                question = exam_dict[user_id]['questions'][q_index].replace('(1)', '\n(1)').replace('(2)',
+                                                                                                    '\n(2)').replace(
+                    '(3)', '\n(3)').replace('(4)', '\n(4)').replace(' ', '')
+                cls = exam_dict[user_id]['cls'][q_index]
+
+                # 出題
+                title = "# " + str(q_id) + f"    (第{q_index + 1}題，共{user_setting[user_id]['num_of_q']}題)" + "\n"
+                title_cls = f"分類：{cls}\n\n"
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=title + title_cls + question))
+
+            # 達到最大題數，開始結算
+            else:
+                exam_dict[user_id]['end_time'] = timestamp
+
+                total_q = user_setting[user_id]['num_of_q']
+                correct_q = exam_dict[user_id]['answers'] == exam_dict[user_id]['user_answers']
+                correct_id = exam_dict[user_id]['q_ids'][correct_q]
+                correct_user_answer = exam_dict[user_id]['user_answers'][correct_q]
+                correct_answer = exam_dict[user_id]['answers'][correct_q]
+                correct_cls = exam_dict[user_id]['cls'][correct_q]
+
+                num_correct_q = np.sum(correct_q)
+                score = 100 * (np.sum(num_correct_q) / total_q)
+
+                error_q = exam_dict[user_id]['answers'] != exam_dict[user_id]['user_answers']
+                error_id = exam_dict[user_id]['q_ids'][error_q]
+                error_user_answer = exam_dict[user_id]['user_answers'][error_q]
+                error_answer = exam_dict[user_id]['answers'][error_q]
+                error_cls = exam_dict[user_id]['cls'][error_q]
+
+                reply_title = f'答對題數：{num_correct_q} / {total_q}  ' + \
+                              '分數：{:.1f} 分\n'.format(score)
+
+                # reply_correct = '\n答對題號：\n#         你的答案    正確答案    類別\n'
+                reply_correct = '\n答對題號：\n#    你的答案  正確答案    類別\n'
+                for id, u_ans, ans, c in zip(correct_id, correct_user_answer, correct_answer, correct_cls):
+                    reply_correct += f'{id}       {u_ans}               {ans}         {c}\n'
+
+                reply_error = '\n答錯題號：\n#    你的答案  正確答案    類別\n'
+                for id, u_ans, ans, c in zip(error_id, error_user_answer, error_answer, error_cls):
+                    reply_error += f'{id}       {u_ans}               {ans}         {c}\n'
+
+                cost_time = exam_dict[user_id]['end_time'] - exam_dict[user_id]['start_time']
+                reply_time = f'\n測驗時間： {cost_time / 1000} 秒'
+
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(
+                    text=reply_title + reply_correct + reply_error + reply_time))
+                exam_dict[user_id]['current'] = False
+
+                add_para = {
+                    'user_id': user_id,
+                    'start_time': exam_dict[user_id]['start_time'],
+                    'end_time': exam_dict[user_id]['end_time'],
+                    'correct_id': correct_id,
+                    'error_id': error_id,
+                    'score': score,
+                    'num_of_q': user_setting[user_id]['num_of_q']
+                }
+                add_exam_record(**add_para)
+
+    ##########################################
+    # 設定題組、考試題數
+    ##########################################
+    elif msg == '設定':
+        if user_id not in user_setting:
+            user_setting[user_id] = setting_temp
+            json_write(user_setting, SET_PATH)
+
+        user_setting[user_id]['is_setting'] = True
+        reply_txt = f"考試題數：{user_setting[user_id]['num_of_q']}\n"
+        reply_txt += get_setting_message(user_id)
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_txt))
+
+    # 設定題組
+    elif (msg in Q_CLS or msg[:2] == '題數') and user_setting[user_id]['is_setting']:
+        if msg[:2] == '題數':
+            user_setting[user_id]['num_of_q'] = int(msg[2:].replace(' ', ''))
         else:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+            user_setting[user_id][msg] = not user_setting[user_id][msg]
 
-    except Exception as e:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=e))
+        reply_txt = f"考試題數：{user_setting[user_id]['num_of_q']}\n"
+        reply_txt += get_setting_message(user_id)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_txt))
+
+    elif msg == '重置':
+        user_setting[user_id] = setting_temp
+        json_write(user_setting, SET_PATH)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="重置完成～"))
+
+
+    ##########################################
+    # 考試 or 設定結束
+    ##########################################
+    elif msg == '結束':
+        if user_id in exam_dict and exam_dict[user_id]['is_exam']:
+            del exam_dict[user_id]
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="考試結束～"))
+
+        if user_setting[user_id]['is_setting']:
+            user_setting[user_id]['is_setting'] = False
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="設定結束～"))
+            json_write(user_setting, SET_PATH)
+
+
+    ##########################################
+    # 瀏覽紀錄
+    ##########################################
+    elif msg in ['紀錄', '歷史']:
+        pass
+
+
+    else:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+
 
 import os
 if __name__ == "__main__":
-    # os.chdir(r'D:/NTUCode/linebot_exam_tool/data')
-    user_setting = json_read('./data/user_setting.json')
-    # print(os.getcwd())
+    user_setting = json_read(SET_PATH)
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
