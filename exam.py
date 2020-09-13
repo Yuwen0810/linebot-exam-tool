@@ -7,7 +7,7 @@ from json_tools import *
 
 
 # os.chdir(r'D:/NTUCode/linebot_exam_tool/data')
-exam_data = pd.read_excel('./excel_output.xlsx')
+exam_data = pd.read_excel('./data/excel_output.xlsx')
 
 def get_question_ids(num_of_q, cls=None):
     if isinstance(cls, (tuple, list)) and len(cls) > 0:

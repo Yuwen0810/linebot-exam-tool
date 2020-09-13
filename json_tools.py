@@ -18,7 +18,7 @@ setting_temp = {
 }
 
 
-def json_read(file_path:str='./user_record.json') -> dict:
+def json_read(file_path:str='./data/user_record.json') -> dict:
     print("reading .................")
     # print(os.getcwd())
     try:
@@ -30,7 +30,7 @@ def json_read(file_path:str='./user_record.json') -> dict:
         print('Error:', e)
         return None
 
-def json_write(data:dict, file_path:str='./user_record.json'):
+def json_write(data:dict, file_path:str='./data/user_record.json'):
     print("writting .................")
     try:
         with open(file_path, 'w') as f:

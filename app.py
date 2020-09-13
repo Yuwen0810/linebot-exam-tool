@@ -18,7 +18,6 @@ from new import *
 from Function import *
 from json_tools import *
 from exam import *
-from user_setting import *
 #======這裡是呼叫的檔案內容=====
 
 #======python的函數庫==========
@@ -119,7 +118,7 @@ def handle_message(event):
                 # 防止忘記結束設定
                 if user_setting[user_id]['is_setting']:
                     user_setting[user_id]['is_setting'] = False
-                    json_write(user_setting, './user_setting.json')
+                    json_write(user_setting, './data/user_setting.json')
 
                 num_of_q = user_setting[user_id]['num_of_q']
                 q_cls = [c for c in Q_CLS if user_setting[user_id][c] == True]
@@ -141,7 +140,7 @@ def handle_message(event):
                 # 建立 setting 中考試者的資料
                 if user_id not in user_setting:
                     user_setting[user_id] = setting_temp
-                    json_write(user_setting, './user_setting.json')
+                    json_write(user_setting, './data/user_setting.json')
 
 
             elif user_id in exam_dict and exam_dict[user_id]['is_exam']:
@@ -222,7 +221,7 @@ def handle_message(event):
         elif msg == '設定':
             if user_id not in user_setting:
                 user_setting[user_id] = setting_temp
-                json_write(user_setting, './user_setting.json')
+                json_write(user_setting, './data/user_setting.json')
 
             user_setting[user_id]['is_setting'] = True
             reply_txt = f"考試題數：{user_setting[user_id]['num_of_q']}\n"
@@ -243,7 +242,7 @@ def handle_message(event):
 
         elif msg == '重置':
             user_setting[user_id] = setting_temp
-            json_write(user_setting, './user_setting.json')
+            json_write(user_setting, './data/user_setting.json')
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="重置完成～"))
 
 
@@ -258,7 +257,7 @@ def handle_message(event):
             if user_setting[user_id]['is_setting']:
                 user_setting[user_id]['is_setting'] = False
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="設定結束～"))
-                json_write(user_setting, './user_setting.json')
+                json_write(user_setting, './data/user_setting.json')
 
 
         ##########################################
@@ -277,7 +276,7 @@ def handle_message(event):
 import os
 if __name__ == "__main__":
     # os.chdir(r'D:/NTUCode/linebot_exam_tool/data')
-    user_setting = json_read('./user_setting.json')
+    user_setting = json_read('./data/user_setting.json')
     # print(os.getcwd())
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
